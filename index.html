@@ -28,6 +28,19 @@
   .danger{color:#b00020}
   footer{padding:12px 16px;font-size:12px;opacity:.8}
 </style>
+<style>
+  /* 🧩 Mobile-first: 横スクロール排除（縦スクロール前提） */
+  html, body { max-width: 100%; overflow-x: hidden; }
+  header, .wrap, footer { max-width: 720px; margin-inline: auto; }
+  select, button, input[type="number"], input[type="text"], input[type="file"], a#dl { width: 100%; }
+  a#dl { display: inline-block; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #toast { overflow-wrap: anywhere; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  @media (max-width: 640px) {
+    .tools, .row { grid-template-columns: 1fr; }
+    video { max-height: 40vh; }
+  }
+</style>
 <!-- 外部ライブラリ：PDF生成（オンライン利用想定）。完全オフラインにしたい場合はPWA化かローカル保存の上で利用 -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
