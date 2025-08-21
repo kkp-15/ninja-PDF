@@ -9,25 +9,24 @@
   *{box-sizing:border-box}
   html,body{max-width:100%;overflow-x:hidden}
   body{font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0}
-  header, .wrap, footer{max-width:720px;margin-inline:auto}
+  header,.wrap,footer{max-width:720px;margin-inline:auto}
   header{position:sticky;top:0;z-index:10;padding:12px 16px;background:color-mix(in oklab, Canvas 85%, transparent);backdrop-filter:blur(6px);border-bottom:1px solid color-mix(in oklab, CanvasText 12%, transparent)}
   h1{margin:0;font-size:18px}
   .wrap{padding:16px;display:grid;gap:var(--gap)}
   button,input[type=file]{padding:12px;font-size:16px;border-radius:12px;border:1px solid color-mix(in oklab, CanvasText 15%, transparent);width:100%;background:color-mix(in oklab, Canvas 92%, transparent)}
-  .row{display:grid;gap:var(--gap);grid-template-columns:1fr 1fr}
+  .row{display:grid;gap:var(--gap);grid-template-columns:1fr 1fr 1fr}
+  @media (max-width:640px){ .row{grid-template-columns:1fr} }
   video{width:100%;max-height:42vh;object-fit:cover;border-radius:12px;background:#000}
   .grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(120px,1fr));gap:8px}
   .card{position:relative;border:1px solid color-mix(in oklab, CanvasText 15%, transparent);border-radius:10px;overflow:hidden}
   .card img{width:100%;height:120px;object-fit:cover;display:block}
   .card .btns{position:absolute;inset:auto 0 0 0;display:flex;gap:6px;justify-content:center;background:color-mix(in oklab, Canvas 70%, transparent);padding:6px}
   .hint{font-size:12px;opacity:.8}
-  .danger{color:#b00020}
-  .ok{color:#0a7a27}
+  .danger{color:#b00020}.ok{color:#0a7a27}
   dialog{max-width:720px;width:92%;border:none;border-radius:14px;padding:0 0 12px 0}
   dialog::backdrop{backdrop-filter:blur(2px)}
   .dlg-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid color-mix(in oklab, CanvasText 12%, transparent)}
   .dlg-bd{padding:12px 16px;line-height:1.6}
-  @media (max-width:640px){ .row{grid-template-columns:1fr} }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
@@ -43,8 +42,10 @@
 <div class="wrap">
   <div class="row">
     <button id="start">🎥 カメラ起動</button>
-    <button id="shot" disabled>📷 撮影</button>
+    <button id="shot"  disabled>📷 撮影</button>
+    <button id="stop"  disabled>■ 停止</button>
   </div>
+
   <input id="pick" type="file" accept="image/*" capture="environment" multiple />
 
   <video id="video" playsinline autoplay muted></video>
@@ -55,7 +56,7 @@
 
   <div class="row">
     <button id="clear" class="danger">🗑️ 全削除</button>
-    <button id="make" class="ok">🧾 PDF作成</button>
+    <button id="make"  class="ok">🧾 PDF作成</button>
   </div>
 
   <div id="after" style="display:none;">
@@ -90,13 +91,12 @@
   <div class="dlg-hd"><strong>安心ガイド</strong><button id="closeSafe" style="width:auto;padding:8px 12px;">OK</button></div>
   <div class="dlg-bd">
     <ul>
-      <li><strong>端末内で完結：</strong> 画像処理とPDF作成はすべてブラウザ内で行い、サーバーへ送信しません。</li>
-      <li><strong>許可が必要なのはカメラのみ：</strong> 起動時に求められるカメラ許可は撮影のため。許可しない場合は画像選択で利用できます。</li>
-      <li><strong>スマホの画像OK：</strong> ギャラリーの写真（JPG/PNG/WEBP など）をそのままPDFにできます。未対応形式は端末の「共有→画像を保存（JPG）」等で変換してください。</li>
-      <li><strong>共有は自分の操作で：</strong> 作成後に「保存」または「共有」を押した時だけ他アプリへ渡ります。</li>
-      <li><strong>ヒント：</strong> 明るい場所／用紙全体を入れて撮影。個人情報は共有前にご確認ください。</li>
+      <li><strong>端末内で完結：</strong> 画像処理とPDF作成はブラウザ内で行い、サーバーへ送信しません。</li>
+      <li><strong>許可が必要なのはカメラのみ：</strong> カメラを使わない場合は「画像を選択」だけでOK。</li>
+      <li><strong>スマホの画像OK：</strong> JPG/PNG/WEBPをそのままPDF化。未対応形式は端末でJPG保存して再試行してください。</li>
+      <li><strong>共有は手動で：</strong> 「保存/共有」を押した時だけ他アプリへ渡ります。</li>
     </ul>
-    <p class="hint">※ オフライン起動やアイコン追加を行う場合はPWA化（Service Worker 追加）が必要です。</p>
+    <p class="hint">※ オフライン起動やホーム追加はPWA化（Service Worker 追加）が必要です。</p>
   </div>
 </dialog>
 
@@ -104,33 +104,46 @@
 (() => {
   const { jsPDF } = window.jspdf;
   const $ = (id)=>document.getElementById(id);
-  const start=$('start'), shot=$('shot'), pick=$('pick'), video=$('video');
+
+  // UI参照
+  const start=$('start'), shot=$('shot'), stop=$('stop'), pick=$('pick'), video=$('video');
   const thumbs=$('thumbs'), clearBtn=$('clear'), makeBtn=$('make');
   const after=$('after'), dl=$('dl'), share=$('share'), toast=$('toast');
-  const helpBtn=$('helpBtn'), dlg=$('dlg'), closeDlg=$('closeDlg'), safeBtn=$('safeBtn'), safeDlg=$('safeDlg'), closeSafe=$('closeSafe');
+  const helpBtn=$('helpBtn'), dlg=$('dlg'), closeDlg=$('closeDlg');
+  const safeBtn=$('safeBtn'), safeDlg=$('safeDlg'), closeSafe=$('closeSafe');
 
-  // 既定：A4 / 長辺2000px / 品質0.8 / 白黒強調ON
+  // 既定パラメータ
   const MAXPX=2000, QUALITY=0.8, BW=true;
 
+  // 状態
   let pages=[]; let stream=null; let undo=null; let lastBlob=null; let lastName='scan_'+fmtDate()+'.pdf';
 
+  // 説明/安心
   helpBtn.addEventListener('click', ()=>dlg.showModal());
   closeDlg.addEventListener('click', ()=>dlg.close());
   safeBtn.addEventListener('click', ()=>safeDlg.showModal());
   closeSafe.addEventListener('click', ()=>{ safeDlg.close(); localStorage.setItem('pdfscan_safety_seen','1'); });
   if(!localStorage.getItem('pdfscan_safety_seen')){ setTimeout(()=>safeDlg.showModal(), 250); }
 
+  // カメラ制御
   start.addEventListener('click', startCam);
+  stop.addEventListener('click', ()=>{ stopCam(); toastMsg('カメラ停止'); });
   window.addEventListener('beforeunload', stopCam);
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) stopCam(); });
+
   async function startCam(){
     stopCam();
     try{
       stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:false});
-      video.srcObject=stream; shot.disabled=false; toastMsg('カメラ起動');
+      video.srcObject=stream; shot.disabled=false; stop.disabled=false; toastMsg('カメラ起動');
     }catch(e){ console.error(e); toastMsg('カメラ不可。画像選択をご利用ください。'); }
   }
-  function stopCam(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; video.srcObject=null; shot.disabled=true; }}
+  function stopCam(){
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    video.srcObject=null; shot.disabled=true; stop.disabled=true;
+  }
 
+  // 撮影
   shot.addEventListener('click', ()=>{
     if(!stream) return;
     const vw=video.videoWidth||1920, vh=video.videoHeight||1080;
@@ -139,15 +152,32 @@
     addPage(cv);
   });
 
+  // 画像取込み（EXIF回転→フォールバック）
   pick.addEventListener('change', async (e)=>{
     const files=[...e.target.files]; if(!files.length) return;
-    for(const f of files){ if(!f.type.startsWith('image/')) continue;
-      const bmp=await createImageBitmap(f,{imageOrientation:'from-image'});
-      const cv=document.createElement('canvas'); cv.width=bmp.width; cv.height=bmp.height; cv.getContext('2d').drawImage(bmp,0,0); bmp.close?.();
-      addPage(cv);
+    for(const f of files){
+      if(!f.type.startsWith('image/')) continue;
+      try{
+        const bmp=await createImageBitmap(f,{imageOrientation:'from-image'});
+        const cv=document.createElement('canvas'); cv.width=bmp.width; cv.height=bmp.height;
+        cv.getContext('2d').drawImage(bmp,0,0); bmp.close?.();
+        addPage(cv);
+      }catch(err){
+        try{
+          const dataURL = await fileToDataURL(f);
+          const img = await loadImage(dataURL);
+          const cv=document.createElement('canvas'); cv.width=img.naturalWidth||img.width; cv.height=img.naturalHeight||img.height;
+          cv.getContext('2d').drawImage(img,0,0);
+          addPage(cv);
+        }catch(e2){
+          console.warn('unsupported image format', e2);
+          toastMsg('この画像形式は未対応の可能性があります。端末でJPG/PNGに変換して再試行してください。');
+        }
+      }
     }
   });
 
+  // ページ追加（縮小→白黒→JPEG化）
   function addPage(srcCv){
     const scale=Math.min(1, MAXPX/Math.max(srcCv.width, srcCv.height));
     const w=Math.round(srcCv.width*scale), h=Math.round(srcCv.height*scale);
@@ -158,14 +188,15 @@
     render(); toastMsg(`追加：${pages.length}ページ`);
   }
 
+  // サムネ描画/並べ替え/削除
   function render(){
     thumbs.innerHTML=''; after.style.display='none';
     pages.forEach((src,i)=>{
       const card=document.createElement('div'); card.className='card';
       const img=document.createElement('img'); img.src=src; card.appendChild(img);
       const bar=document.createElement('div'); bar.className='btns';
-      const up=btn('↑',()=>{ if(i>0){ [pages[i-1],pages[i]]=[pages[i],pages[i-1]]; render(); } });
-      const dn=btn('↓',()=>{ if(i<pages.length-1){ [pages[i+1],pages[i]]=[pages[i],pages[i+1]]; render(); } });
+      const up =btn('↑',()=>{ if(i>0){ [pages[i-1],pages[i]]=[pages[i],pages[i-1]]; render(); } });
+      const dn =btn('↓',()=>{ if(i<pages.length-1){ [pages[i+1],pages[i]]=[pages[i],pages[i+1]]; render(); } });
       const del=btn('削除',()=>{ undo={i,data:pages[i]}; pages.splice(i,1); render(); toastMsg('削除しました','元に戻す',undoDel); });
       bar.append(up,dn,del); card.appendChild(bar); thumbs.appendChild(card);
     });
@@ -173,13 +204,16 @@
   function btn(t,on){ const b=document.createElement('button'); b.textContent=t; b.onclick=on; return b; }
   function undoDel(){ if(!undo) return; pages.splice(undo.i,0,undo.data); undo=null; render(); }
 
+  // 全削除
   clearBtn.addEventListener('click',()=>{ if(!pages.length) return; if(confirm('すべて削除しますか？')){ pages=[]; render(); toastMsg('全削除'); } });
 
+  // PDF作成（A4縦 / 余白24pt / ページ番号）
   makeBtn.addEventListener('click', async ()=>{
     if(!pages.length){ toastMsg('ページがありません'); return; }
-    const size=[595.28, 841.89]; // A4 縦 pt
+    const size=[595.28,841.89]; // A4 pt
     const pdf=new jsPDF({orientation:'p', unit:'pt', format:size});
     const margin=24, W=size[0]-margin*2, H=size[1]-margin*2;
+
     for(let i=0;i<pages.length;i++){
       if(i>0) pdf.addPage(size,'p');
       const {w:iw,h:ih}=await imgSize(pages[i]);
@@ -189,11 +223,16 @@
       pdf.setFontSize(10); pdf.text(`${i+1}/${pages.length}`, size[0]-margin, size[1]-margin*0.6, {align:'right'});
     }
     lastName = 'scan_'+fmtDate()+'.pdf';
-    lastBlob = pdf.output('blob'); const url=URL.createObjectURL(lastBlob);
-    $('dl').href=url; $('dl').download=lastName; after.style.display='block';
-    pdf.save(lastName); toastMsg('PDFを作成しました');
+    lastBlob = pdf.output('blob');
+    const url=URL.createObjectURL(lastBlob);
+    dl.href=url; dl.download=lastName; after.style.display='block';
+
+    pdf.save(lastName);
+    stopCam(); // バッテリー節約
+    toastMsg('PDFを作成しました');
   });
 
+  // 共有（Web Share対応端末）
   share.addEventListener('click', async ()=>{
     if(!lastBlob){ toastMsg('先にPDFを作成してください'); return; }
     const file=new File([lastBlob], lastName, {type:'application/pdf'});
@@ -202,9 +241,12 @@
     }else{ toastMsg('この端末はWeb Share未対応です。保存してから共有してください。'); }
   });
 
+  // 補助
   function fmtDate(d=new Date()){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0'); return `${y}${m}${da}`; }
   function imgSize(url){ return new Promise(res=>{ const img=new Image(); img.onload=()=>res({w:img.naturalWidth||1,h:img.naturalHeight||1}); img.src=url; }); }
   function toastMsg(text, actionText, action){ toast.textContent=''; toast.append(document.createTextNode(text)); if(actionText){ const b=document.createElement('button'); b.textContent=actionText; b.style.marginLeft='8px'; b.onclick=()=>{ action?.(); toast.textContent=''; }; toast.appendChild(b);} }
+  function fileToDataURL(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); }); }
+  function loadImage(src){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=src; }); }
 })();
 </script>
 </body>
