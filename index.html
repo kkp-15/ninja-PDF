@@ -3,51 +3,66 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>PDFスキャン｜カメラとファイルの使い分け</title>
+<title>PDFスキャン｜カメラとファイルを使い分け＋OCR</title>
 <style>
   :root { color-scheme: light dark; --gap:12px; }
-  *{box-sizing:border-box}
-  html,body{max-width:100%;overflow-x:hidden}
-  body{font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0}
-  header,.wrap,footer{max-width:720px;margin-inline:auto}
-  header{position:sticky;top:0;z-index:10;padding:12px 16px;background:color-mix(in oklab, Canvas 85%, transparent);backdrop-filter:blur(6px);border-bottom:1px solid color-mix(in oklab, CanvasText 12%, transparent)}
-  h1{margin:0;font-size:18px}
-  .wrap{padding:16px;display:grid;gap:var(--gap)}
-  button,input[type=file]{padding:12px;font-size:16px;border-radius:12px;border:1px solid color-mix(in oklab, CanvasText 15%, transparent);width:100%;background:color-mix(in oklab, Canvas 92%, transparent)}
-  .row{display:grid;gap:var(--gap);grid-template-columns:1fr 1fr 1fr}
-  @media (max-width:640px){ .row{grid-template-columns:1fr} }
-  video{width:100%;max-height:42vh;object-fit:cover;border-radius:12px;background:#000}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(120px,1fr));gap:8px}
-  .card{position:relative;border:1px solid color-mix(in oklab, CanvasText 15%, transparent);border-radius:10px;overflow:hidden}
-  .card img{width:100%;height:120px;object-fit:cover;display:block}
-  .card .btns{position:absolute;inset:auto 0 0 0;display:flex;gap:6px;justify-content:center;background:color-mix(in oklab, Canvas 70%, transparent);padding:6px}
-  .hint{font-size:12px;opacity:.8}
-  .danger{color:#b00020}.ok{color:#0a7a27}
+  *{ box-sizing:border-box }
+  html,body{ max-width:100%; overflow-x:hidden }
+  body{ font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0 }
+  header,.wrap,footer{ max-width:720px; margin-inline:auto }
+  header{ position:sticky; top:0; z-index:10; padding:12px 16px;
+          background:color-mix(in oklab, Canvas 85%, transparent);
+          backdrop-filter:blur(6px);
+          border-bottom:1px solid color-mix(in oklab, CanvasText 12%, transparent) }
+  h1{ margin:0; font-size:18px }
+  .wrap{ padding:16px; display:grid; gap:var(--gap) }
+  button,input[type=file]{ padding:12px; font-size:16px; border-radius:12px;
+    border:1px solid color-mix(in oklab, CanvasText 15%, transparent);
+    width:100%; background:color-mix(in oklab, Canvas 92%, transparent) }
+  .row{ display:grid; gap:var(--gap); grid-template-columns:1fr 1fr 1fr }
+  @media (max-width:640px){ .row{ grid-template-columns:1fr } }
+  video{ width:100%; max-height:42vh; object-fit:cover; border-radius:12px; background:#000 }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:8px }
+  .card{ position:relative; border:1px solid color-mix(in oklab, CanvasText 15%, transparent);
+         border-radius:10px; overflow:hidden }
+  .card img{ width:100%; height:120px; object-fit:cover; display:block }
+  .card .btns{ position:absolute; inset:auto 0 0 0; display:flex; gap:6px; justify-content:center;
+               background:color-mix(in oklab, Canvas 70%, transparent); padding:6px }
+  .hint{ font-size:12px; opacity:.8 }
+  .danger{ color:#b00020 } .ok{ color:#0a7a27 }
+  label.tog{ display:block; font-size:14px; }
 </style>
+<!-- PDF生成 -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<!-- OCR（初回は言語データの読み込みが入ります） -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 <header>
-  <h1>PDFスキャン（カメラ／ファイルを使い分け）</h1>
+  <h1>PDFスキャン（カメラ／ファイル使い分け＋OCR）</h1>
 </header>
 
 <div class="wrap">
-  <!-- カメラ操作（起動・停止・撮影） -->
+  <!-- カメラ操作 -->
   <div class="row">
     <button id="start">🎥 カメラ起動</button>
     <button id="stop"  disabled>■ 停止</button>
     <button id="shot"  disabled>📷 撮影</button>
   </div>
 
-  <!-- ギャラリー専用のファイル選択（カメラは起動しない） -->
+  <!-- ファイル選択（ギャラリー専用） -->
   <button id="choose">🖼 画像を選ぶ</button>
   <input id="pick" type="file" accept="image/*" multiple style="display:none" />
+
+  <!-- 出力オプション -->
+  <label class="tog"><input id="bw" type="checkbox" checked> 白黒で軽量化（OFFでカラー）</label>
+  <label class="tog"><input id="ocr" type="checkbox"> 文字を検索/選択可にする（OCR：日本語+英語 β）</label>
 
   <video id="video" playsinline autoplay muted></video>
 
   <h3 style="margin:6px 0">📑 ページ</h3>
   <div id="thumbs" class="grid"></div>
-  <div class="hint">順番は↑↓で変更、削除可。必要枚数を追加したらPDFを作成。</div>
+  <div class="hint">↑↓で順番変更、削除可。必要枚数を追加したらPDF作成へ。</div>
 
   <div class="row">
     <button id="clear" class="danger">🗑️ 全削除</button>
@@ -66,7 +81,7 @@
 </div>
 
 <footer class="hint" style="padding:12px 16px;">
-  カメラはHTTPSでのみ利用可（GitHub Pagesなど推奨）。ファイル選択はギャラリー中心で、カメラは起動しません。
+  ※ カメラは HTTPS ページでのみ利用可（GitHub Pages など推奨）。OCRは初回に言語データの取得が必要です。
 </footer>
 
 <script>
@@ -79,9 +94,11 @@
   const choose=$('choose'), pick=$('pick'), video=$('video');
   const thumbs=$('thumbs'), clearBtn=$('clear'), makeBtn=$('make');
   const after=$('after'), dl=$('dl'), share=$('share'), toast=$('toast');
+  const bwChk=$('bw'), ocrChk=$('ocr');
 
   // 既定パラメータ
-  const MAXPX=2000, QUALITY=0.8, BW=true;
+  const MAXPX=2000, QUALITY=0.8; // A4向けの軽量バランス
+  const isBW = () => bwChk.checked;
 
   // 状態
   let pages=[]; let stream=null; let undo=null; let lastBlob=null; let lastName='scan_'+fmtDate()+'.pdf';
@@ -89,13 +106,7 @@
   // カメラ制御
   start.addEventListener('click', startCam);
   stop.addEventListener('click', ()=>{ stopCam(); toastMsg('カメラ停止'); });
-  shot.addEventListener('click', ()=>{
-    if(!stream) return;
-    const vw=video.videoWidth||1920, vh=video.videoHeight||1080;
-    const cv=document.createElement('canvas'); cv.width=vw; cv.height=vh;
-    cv.getContext('2d').drawImage(video,0,0,vw,vh);
-    addPage(cv);
-  });
+  shot.addEventListener('click', ()=>{ if(!stream) return; captureFrame(); });
   window.addEventListener('beforeunload', stopCam);
   document.addEventListener('visibilitychange', ()=>{ if(document.hidden) stopCam(); });
 
@@ -110,8 +121,14 @@
     if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
     video.srcObject=null; shot.disabled=true; stop.disabled=true;
   }
+  function captureFrame(){
+    const vw=video.videoWidth||1920, vh=video.videoHeight||1080;
+    const cv=document.createElement('canvas'); cv.width=vw; cv.height=vh;
+    cv.getContext('2d').drawImage(video,0,0,vw,vh);
+    addPage(cv);
+  }
 
-  // ギャラリー（ファイル）選択：カメラは起動しない
+  // ファイル選択：まず File Picker API（対応端末）→ 非対応は input にフォールバック
   choose.addEventListener('click', async ()=>{
     if ('showOpenFilePicker' in window) {
       try {
@@ -122,26 +139,25 @@
         const files = await Promise.all(handles.map(h => h.getFile()));
         await addFiles(files);
         return;
-      } catch(e){ /* ユーザーキャンセル等 → inputにフォールバック */ }
+      } catch(e){ /* ユーザーキャンセル等 → inputで */ }
     }
-    pick.click(); // 従来のファイルピッカー（カメラは起動しない）
+    pick.click();
   });
-
   pick.addEventListener('change', async (e)=>{
     await addFiles([...e.target.files]);
-    e.target.value = ''; // 同じ画像の再選択でもchangeが発火するように
+    e.target.value = ''; // 同じ画像の再選択でもchange発火
   });
 
   async function addFiles(files){
     for(const f of files){
       if(!f.type.startsWith('image/')) continue;
       try{
-        const bmp=await createImageBitmap(f,{ imageOrientation:'from-image' });
+        const bmp=await createImageBitmap(f,{ imageOrientation:'from-image' }); // EXIF対応
         const cv=document.createElement('canvas'); cv.width=bmp.width; cv.height=bmp.height;
         cv.getContext('2d').drawImage(bmp,0,0); bmp.close?.();
         addPage(cv);
       }catch(err){
-        // フォールバック（HEIC等向け）: FileReader→Image
+        // フォールバック（HEIC等）：FileReader→Image で試行
         try{
           const dataURL = await fileToDataURL(f);
           const img = await loadImage(dataURL);
@@ -156,13 +172,17 @@
     }
   }
 
-  // ページ追加（縮小→白黒→JPEG化）
+  // ページ化（縮小→白黒オプション→JPEG化）
   function addPage(srcCv){
     const scale=Math.min(1, MAXPX/Math.max(srcCv.width, srcCv.height));
     const w=Math.round(srcCv.width*scale), h=Math.round(srcCv.height*scale);
     const cv=document.createElement('canvas'); cv.width=w; cv.height=h; const ctx=cv.getContext('2d');
     ctx.drawImage(srcCv,0,0,w,h);
-    if(BW){ const img=ctx.getImageData(0,0,w,h), d=img.data; for(let i=0;i<d.length;i+=4){ const y=d[i]*.299+d[i+1]*.587+d[i+2]*.114; d[i]=d[i+1]=d[i+2]=y; } ctx.putImageData(img,0,0); }
+    if(isBW()){ // 軽量グレースケール
+      const img=ctx.getImageData(0,0,w,h), d=img.data;
+      for(let i=0;i<d.length;i+=4){ const y=d[i]*.299+d[i+1]*.587+d[i+2]*.114; d[i]=d[i+1]=d[i+2]=y; }
+      ctx.putImageData(img,0,0);
+    }
     pages.push(cv.toDataURL('image/jpeg', QUALITY));
     render(); toastMsg(`追加：${pages.length}ページ`);
   }
@@ -184,9 +204,12 @@
   function undoDel(){ if(!undo) return; pages.splice(undo.i,0,undo.data); undo=null; render(); }
 
   // 全削除
-  clearBtn.addEventListener('click',()=>{ if(!pages.length) return; if(confirm('すべて削除しますか？')){ pages=[]; render(); toastMsg('全削除'); } });
+  clearBtn.addEventListener('click',()=>{
+    if(!pages.length) return;
+    if(confirm('すべて削除しますか？')){ pages=[]; render(); toastMsg('全削除'); }
+  });
 
-  // PDF作成（A4縦 / 余白24pt / ページ番号）
+  // PDF作成（A4縦 / 余白24pt / ページ番号＋OCRオプション）
   makeBtn.addEventListener('click', async ()=>{
     if(!pages.length){ toastMsg('ページがありません'); return; }
     const size=[595.28,841.89]; // A4 pt
@@ -195,12 +218,40 @@
 
     for(let i=0;i<pages.length;i++){
       if(i>0) pdf.addPage(size,'p');
+
+      // 画像配置（中央・最大）
       const {w:iw,h:ih}=await imgSize(pages[i]);
-      const ir=iw/ih, wr=W/H; let dw,dh; if(ir>wr){ dw=W; dh=W/ir; } else { dh=H; dw=H*ir; }
+      const ir=iw/ih, wr=W/H; let dw,dh;
+      if(ir>wr){ dw=W; dh=W/ir; } else { dh=H; dw=H*ir; }
       const x=(size[0]-dw)/2, y=(size[1]-dh)/2;
       pdf.addImage(pages[i],'JPEG',x,y,dw,dh,undefined,'FAST');
-      pdf.setFontSize(10); pdf.text(`${i+1}/${pages.length}`, size[0]-margin, size[1]-margin*0.6, {align:'right'});
+
+      // ページ番号
+      pdf.setFontSize(10);
+      pdf.text(`${i+1}/${pages.length}`, size[0]-margin, size[1]-margin*0.6, {align:'right'});
+
+      // OCR（任意）：透明レイヤー代わりに白文字で重ねる（見た目は変わらず、選択/検索可）
+      if(ocrChk.checked && window.Tesseract){
+        try{
+          const { data } = await Tesseract.recognize(pages[i], 'jpn+eng');
+          const words = data.words || [];
+          const scaleX = dw / iw, scaleY = dh / ih;
+          pdf.setTextColor(255,255,255); // 白背景で不可視
+          pdf.setFontSize(10);
+          for(const wd of words){
+            const b = wd.bbox || wd; // safety
+            const tx = x + (b.x0 || b.x) * scaleX;
+            const ty = y + (b.y1 || (b.y + b.h)) * scaleY; // 下端基準
+            const t  = wd.text || wd.symbol || '';
+            if(t) pdf.text(t, tx, ty, { baseline:'bottom' });
+          }
+        }catch(e){
+          console.warn('OCR failed', e);
+          toastMsg('OCRに失敗しました（通信状況や画像を確認してください）');
+        }
+      }
     }
+
     lastName = 'scan_'+fmtDate()+'.pdf';
     lastBlob = pdf.output('blob');
     const url=URL.createObjectURL(lastBlob);
@@ -221,11 +272,23 @@
   });
 
   // 補助
-  function fmtDate(d=new Date()){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0'); return `${y}${m}${da}`; }
-  function imgSize(url){ return new Promise(res=>{ const img=new Image(); img.onload=()=>res({w:img.naturalWidth||1,h:img.naturalHeight||1}); img.src=url; }); }
-  function toastMsg(text, actionText, action){ toast.textContent=''; toast.append(document.createTextNode(text)); if(actionText){ const b=document.createElement('button'); b.textContent=actionText; b.style.marginLeft='8px'; b.onclick=()=>{ action?.(); toast.textContent=''; }; toast.appendChild(b);} }
-  function fileToDataURL(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); }); }
-  function loadImage(src){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=src; }); }
+  function fmtDate(d=new Date()){
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0');
+    return `${y}${m}${da}`;
+  }
+  function imgSize(url){
+    return new Promise(res=>{ const img=new Image(); img.onload=()=>res({w:img.naturalWidth||1,h:img.naturalHeight||1}); img.src=url; });
+  }
+  function toastMsg(text, actionText, action){
+    toast.textContent=''; toast.append(document.createTextNode(text));
+    if(actionText){ const b=document.createElement('button'); b.textContent=actionText; b.style.marginLeft='8px'; b.onclick=()=>{ action?.(); toast.textContent=''; }; toast.appendChild(b); }
+  }
+  function fileToDataURL(file){
+    return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); });
+  }
+  function loadImage(src){
+    return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=src; });
+  }
 })();
 </script>
 </body>
